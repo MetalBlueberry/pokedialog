@@ -4,14 +4,12 @@ import (
 	_ "embed"
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestFrameAt(t *testing.T) {
 	type args struct {
-		lines          []string
-		charsPerSecond float64
-		duration       time.Duration
+		lines    []string
+		position int
 	}
 	tests := []struct {
 		name string
@@ -20,64 +18,57 @@ func TestFrameAt(t *testing.T) {
 	}{
 		{
 			args: args{
-				lines:          []string{"hello world"},
-				charsPerSecond: 3,
-				duration:       time.Second,
+				lines:    []string{"hello world"},
+				position: 3,
 			},
 			want: []string{"hel"},
 		},
 		{
 			args: args{
-				lines:          []string{"hello world"},
-				charsPerSecond: 3,
-				duration:       time.Second * 3,
+				lines:    []string{"hello world"},
+				position: 9,
 			},
 			want: []string{"hello wor"},
 		},
 		{
 			args: args{
-				lines:          []string{"hello", "world"},
-				charsPerSecond: 3,
-				duration:       time.Second * 3,
+				lines:    []string{"hello", "world"},
+				position: 9,
 			},
 			want: []string{"hello", "worl"},
 		},
 		{
 			args: args{
-				lines:          []string{"hello", "world", "again"},
-				charsPerSecond: 3,
-				duration:       time.Second * 4,
+				lines:    []string{"hello", "world", "again"},
+				position: 12,
 			},
 			want: []string{"world", "ag"},
 		},
 		{
 			args: args{
-				lines:          []string{"hello", "world", "again"},
-				charsPerSecond: 5,
-				duration:       time.Second * 2,
+				lines:    []string{"hello", "world", "again"},
+				position: 10,
 			},
 			want: []string{"hello", "world"},
 		},
 		{
 			args: args{
-				lines:          []string{"hello", "world", "again"},
-				charsPerSecond: 5,
-				duration:       time.Second * 3,
+				lines:    []string{"hello", "world", "again"},
+				position: 15,
 			},
 			want: []string{"world", "again"},
 		},
 		{
 			args: args{
-				lines:          []string{"hello", "world", "again"},
-				charsPerSecond: 5,
-				duration:       time.Second * 4,
+				lines:    []string{"hello", "world", "again"},
+				position: 20,
 			},
 			want: []string{"world", "again"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := FrameAt(tt.args.lines, tt.args.charsPerSecond, tt.args.duration); !reflect.DeepEqual(got, tt.want) {
+			if got := LinesAt(tt.args.lines, tt.args.position); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FrameAt() = %v, want %v", got, tt.want)
 			}
 		})

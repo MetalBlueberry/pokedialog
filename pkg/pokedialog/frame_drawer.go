@@ -5,11 +5,10 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"image/gif"
 	"image/png"
-	"log"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
@@ -17,16 +16,17 @@ import (
 )
 
 type FrameDrawer struct {
-	font    *truetype.Font
-	frame   image.Image
-	palette []color.Color
-	img     *image.Paletted
+	font           *truetype.Font
+	palette        []color.Color
+	img            *image.Paletted
+	charsPerSecond float64
+	frameRect      image.Rectangle
 }
 
 //go:embed "Pokemon GB.ttf"
 var pokefont []byte
 
-func NewDrawer(dialogFilePath string) (*FrameDrawer, error) {
+func NewDrawer(dialogFilePath string, charsPerSecond float64, frameRect image.Rectangle) (*FrameDrawer, error) {
 	dialogFile, err := os.Open(dialogFilePath)
 	if err != nil {
 		panic(err)
@@ -57,9 +57,11 @@ func NewDrawer(dialogFilePath string) (*FrameDrawer, error) {
 		return nil, err
 	}
 	return &FrameDrawer{
-		font:    f,
-		palette: palette,
-		img:     img,
+		font:           f,
+		palette:        palette,
+		img:            img,
+		charsPerSecond: charsPerSecond,
+		frameRect:      frameRect,
 	}, nil
 }
 
@@ -69,9 +71,32 @@ func (fd *FrameDrawer) baseImage() *image.Paletted {
 	return base
 }
 
-func (fd *FrameDrawer) Draw(frameRect image.Rectangle, text string) *image.Paletted {
+func (fd *FrameDrawer) Gif(text string, frameCount int) *gif.GIF {
+	frames := fd.DrawFrames(text, frameCount)
+
+	return &gif.GIF{
+		Image: frames,
+	}
+
+}
+
+func (fd *FrameDrawer) DrawFrames(text string, frameCount int) []*image.Paletted {
+	maxFrames := len(text)
+	if frameCount > maxFrames {
+		frameCount = maxFrames
+	}
+
+	frames := make([]*image.Paletted, frameCount)
+
+	for i := 1; i <= frameCount; i++ {
+		frames[i-1] = fd.DrawFrameAt(text, maxFrames*i/frameCount)
+	}
+	return frames
+}
+
+func (fd *FrameDrawer) DrawFrameAt(text string, frame int) *image.Paletted {
 	base := fd.baseImage()
-	frameImage := base.SubImage(frameRect).(*image.Paletted)
+	frameImage := base.SubImage(fd.frameRect).(*image.Paletted)
 
 	fontColor := color.RGBA{0, 0, 0, 255}
 
@@ -89,7 +114,9 @@ func (fd *FrameDrawer) Draw(frameRect image.Rectangle, text string) *image.Palet
 		Face: face,
 	}
 
-	for l, sentences := range SplitLines(face, text, bounds.Dx()) {
+	lines := SplitLines(face, text, bounds.Dx())
+	linesAt := LinesAt(lines, frame)
+	for l, sentences := range linesAt {
 		d.Dot = dotForLine(bounds.Min.X, bounds.Min.Y, fontSize, l)
 		d.DrawString(sentences)
 		d.DrawString(" ")
@@ -122,22 +149,20 @@ func SplitLines(face font.Face, text string, width int) []string {
 	if i != len(words) {
 		lines = append(lines, strings.Join(words[i:], " "))
 	}
-	log.Println(lines)
 	return lines
 }
 
-func FrameAt(lines []string, charsPerSecond float64, duration time.Duration) []string {
-	startPosition := int(charsPerSecond * duration.Seconds())
+func LinesAt(lines []string, position int) []string {
 	offset := 0
 	var i int
 	var line string
 	for i, line = range lines {
-		if offset+len(line) >= int(startPosition) {
+		if offset+len(line) >= int(position) {
 			break
 		}
 		offset += len(line)
 	}
-	lastLine := line[:startPosition-offset]
+	lastLine := line[:position-offset]
 	if i > 0 {
 		return []string{
 			lines[i-1],

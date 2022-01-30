@@ -1,32 +1,47 @@
 package main
 
 import (
+	"flag"
 	"image"
-	"image/png"
+	"image/gif"
 	"os"
+	"time"
 
 	"github.com/metalblueberry/pokedialog/pkg/pokedialog"
 )
 
 func main() {
 
-	dw, err := pokedialog.NewDrawer("dialog.png")
+	text := flag.String("text", "hello world", "text to be render")
+	flag.Parse()
+
+	dw, err := pokedialog.NewDrawer("dialog.png", 3, image.Rect(185, 145, 1530, 435))
 	if err != nil {
 		panic(err)
 	}
 
-	img := dw.Draw(
-		image.Rect(185, 145, 1530, 435),
-		// window,
-		"Hello Typefont test length for the provided text",
+	gifs := dw.Gif(
+		*text,
+		2,
 	)
 
-	f, err := os.Create("hello-go.png")
+	f, err := os.Create("hello-go.gif")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	if err := png.Encode(f, img); err != nil {
+
+	err = gif.EncodeAll(f, gifs)
+	if err != nil {
 		panic(err)
 	}
+}
+
+func constantDelay(n int, duration time.Duration) []int {
+	d := duration.Seconds() / 10
+	ints := make([]int, n)
+	for i := range ints {
+		ints[i] = int(d)
+	}
+	return ints
 }
