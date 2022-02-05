@@ -183,13 +183,12 @@ func SplitLines(face font.Face, text string, width int) []string {
 	lines := []string{}
 	words := strings.Split(text, " ")
 	for j := range words {
-		line := strings.Join(words[i:j], " ")
+		line := strings.Join(words[i:j+1], " ")
 		length := font.MeasureString(face, line)
-		log.Println(line)
 		if length.Ceil() > width {
-			line := strings.Join(words[i:j-1], " ")
+			line := strings.Join(words[i:j], " ")
 			lines = append(lines, line)
-			i = j - 1
+			i = j
 		}
 	}
 	if i != len(words) {
