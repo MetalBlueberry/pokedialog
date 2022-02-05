@@ -13,6 +13,7 @@ import (
 func main() {
 
 	text := flag.String("text", "hello world", "text to be render")
+	frames := flag.Int("frames", 5, "number of frames")
 	flag.Parse()
 
 	dw, err := pokedialog.NewDrawer("dialog.png", 3, image.Rect(185, 145, 1530, 435))
@@ -22,7 +23,8 @@ func main() {
 
 	gifs := dw.Gif(
 		*text,
-		2,
+		*frames,
+		time.Second*5,
 	)
 
 	f, err := os.Create("hello-go.gif")
@@ -35,13 +37,4 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func constantDelay(n int, duration time.Duration) []int {
-	d := duration.Seconds() / 10
-	ints := make([]int, n)
-	for i := range ints {
-		ints[i] = int(d)
-	}
-	return ints
 }
