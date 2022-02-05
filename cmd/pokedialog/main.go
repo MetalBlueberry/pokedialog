@@ -16,9 +16,16 @@ func main() {
 	frames := flag.Int("frames", 0, "number of frames")
 	duration := flag.Float64("duration", 0, "duration for the gif in seconds")
 	optimize := flag.Bool("optimize", true, "post process gif to reduce size by using transparency on each frame")
+
 	flag.Parse()
 
-	dw, err := pokedialog.NewDrawer("dialog.png", 3, image.Rect(185, 145, 1530, 435))
+	// b, err := os.Open("basic.png")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer b.Close()
+	// dw, err := pokedialog.NewDrawerWithDialog(b, image.Rect(70, 100, 750, 340))
+	dw, err := pokedialog.NewDrawer()
 	if err != nil {
 		panic(err)
 	}

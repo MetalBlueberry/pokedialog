@@ -1,14 +1,15 @@
 package pokedialog
 
 import (
+	"bytes"
 	_ "embed"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/gif"
 	"image/png"
+	"io"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -18,22 +19,24 @@ import (
 )
 
 type FrameDrawer struct {
-	font           *truetype.Font
-	palette        []color.Color
-	img            *image.Paletted
-	charsPerSecond float64
-	frameRect      image.Rectangle
+	font      *truetype.Font
+	palette   []color.Color
+	img       *image.Paletted
+	frameRect image.Rectangle
 }
 
 //go:embed "Pokemon GB.ttf"
-var pokefont []byte
+var Pokefont []byte
 
-func NewDrawer(dialogFilePath string, charsPerSecond float64, frameRect image.Rectangle) (*FrameDrawer, error) {
-	dialogFile, err := os.Open(dialogFilePath)
-	if err != nil {
-		panic(err)
-	}
-	defer dialogFile.Close()
+//go:embed "dialog.png"
+var DefaultDialog []byte
+var DefaultDialogFrameRect = image.Rect(185, 145, 1530, 435)
+
+func NewDrawer() (*FrameDrawer, error) {
+	return NewDrawerWithDialog(bytes.NewReader(DefaultDialog), DefaultDialogFrameRect)
+}
+
+func NewDrawerWithDialog(dialogFile io.Reader, frameRect image.Rectangle) (*FrameDrawer, error) {
 	dialog, err := png.Decode(dialogFile)
 	if err != nil {
 		panic(err)
@@ -54,16 +57,15 @@ func NewDrawer(dialogFilePath string, charsPerSecond float64, frameRect image.Re
 	img := image.NewPaletted(dialog.Bounds(), palette)
 	draw.Draw(img, img.Bounds(), dialog, dialog.Bounds().Min, draw.Src)
 
-	f, err := truetype.Parse(pokefont)
+	f, err := truetype.Parse(Pokefont)
 	if err != nil {
 		return nil, err
 	}
 	return &FrameDrawer{
-		font:           f,
-		palette:        palette,
-		img:            img,
-		charsPerSecond: charsPerSecond,
-		frameRect:      frameRect,
+		font:      f,
+		palette:   palette,
+		img:       img,
+		frameRect: frameRect,
 	}, nil
 }
 
