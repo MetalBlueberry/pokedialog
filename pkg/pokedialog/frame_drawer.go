@@ -7,8 +7,10 @@ import (
 	"image/draw"
 	"image/gif"
 	"image/png"
+	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
@@ -71,11 +73,30 @@ func (fd *FrameDrawer) baseImage() *image.Paletted {
 	return base
 }
 
-func (fd *FrameDrawer) Gif(text string, frameCount int) *gif.GIF {
-	frames := fd.DrawFrames(text, frameCount)
+func (fd *FrameDrawer) Gif(text string, frameCount int, duration time.Duration) *gif.GIF {
+	maxFrames := len(text)
+	if frameCount > maxFrames {
+		frameCount = maxFrames
+	}
+
+	paragraphs := splitParagraphs(text)
+	frames := []*image.Paletted{}
+	delays := []int{}
+	for _, paragraph := range paragraphs {
+		log.Println(paragraph)
+		paragraphFrameCount := frameCount * len(paragraph) / len(text)
+
+		paragraphFrames := fd.DrawFrames(paragraph, paragraphFrameCount)
+		frames = append(frames, paragraphFrames...)
+
+		delays = append(delays, constantDelay(len(paragraphFrames), duration/time.Duration(frameCount))...)
+		delays[len(delays)-1] = int(time.Second / 10)
+	}
 
 	return &gif.GIF{
-		Image: frames,
+		Image:     frames,
+		Delay:     delays,
+		LoopCount: 0,
 	}
 
 }
@@ -89,6 +110,7 @@ func (fd *FrameDrawer) DrawFrames(text string, frameCount int) []*image.Paletted
 	frames := make([]*image.Paletted, frameCount)
 
 	for i := 1; i <= frameCount; i++ {
+		log.Println(maxFrames, i, frameCount, maxFrames*i/frameCount)
 		frames[i-1] = fd.DrawFrameAt(text, maxFrames*i/frameCount)
 	}
 	return frames
@@ -115,7 +137,9 @@ func (fd *FrameDrawer) DrawFrameAt(text string, frame int) *image.Paletted {
 	}
 
 	lines := SplitLines(face, text, bounds.Dx())
+
 	linesAt := LinesAt(lines, frame)
+	log.Println(text, frame, len(lines), linesAt)
 	for l, sentences := range linesAt {
 		d.Dot = dotForLine(bounds.Min.X, bounds.Min.Y, fontSize, l)
 		d.DrawString(sentences)
@@ -134,12 +158,14 @@ func dotForLine(x int, y int, size float64, n int) fixed.Point26_6 {
 }
 
 func SplitLines(face font.Face, text string, width int) []string {
+	log.Println(text)
 	i := 0
 	lines := []string{}
 	words := strings.Split(text, " ")
 	for j := range words {
 		line := strings.Join(words[i:j], " ")
 		length := font.MeasureString(face, line)
+		log.Println(line, length, width)
 		if length.Ceil() > width {
 			line := strings.Join(words[i:j-1], " ")
 			lines = append(lines, line)
@@ -149,25 +175,49 @@ func SplitLines(face font.Face, text string, width int) []string {
 	if i != len(words) {
 		lines = append(lines, strings.Join(words[i:], " "))
 	}
+	log.Println(strings.Join(lines, ","), len(lines))
 	return lines
 }
 
 func LinesAt(lines []string, position int) []string {
+
 	offset := 0
-	var i int
-	var line string
+	var (
+		i         int
+		line      string
+		completed bool
+	)
 	for i, line = range lines {
 		if offset+len(line) >= int(position) {
+			completed = true
 			break
 		}
 		offset += len(line)
 	}
-	lastLine := line[:position-offset]
+
+	result := []string{}
+
 	if i > 0 {
-		return []string{
-			lines[i-1],
-			lastLine,
-		}
+		result = append(result, lines[i-1])
 	}
-	return []string{lastLine}
+	if completed {
+		result = append(result, line[:position-offset])
+	} else {
+		result = append(result, line)
+	}
+
+	return result
+}
+
+func splitParagraphs(text string) []string {
+	return strings.Split(text, "\n")
+}
+
+func constantDelay(n int, duration time.Duration) []int {
+	d := duration.Seconds() / 10
+	ints := make([]int, n)
+	for i := range ints {
+		ints[i] = int(d)
+	}
+	return ints
 }

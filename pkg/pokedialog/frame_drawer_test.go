@@ -3,10 +3,11 @@ package pokedialog
 import (
 	_ "embed"
 	"reflect"
+	"strings"
 	"testing"
 )
 
-func TestFrameAt(t *testing.T) {
+func TestLinesAt(t *testing.T) {
 	type args struct {
 		lines    []string
 		position int
@@ -65,11 +66,18 @@ func TestFrameAt(t *testing.T) {
 			},
 			want: []string{"world", "again"},
 		},
+		{
+			args: args{
+				lines:    []string{"Test long text", "with other"},
+				position: 25,
+			},
+			want: []string{"Test long text", "with other"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := LinesAt(tt.args.lines, tt.args.position); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FrameAt() = %v, want %v", got, tt.want)
+				t.Errorf("FrameAt() = [%v], want [%v]", strings.Join(got, ","), strings.Join(tt.want, ","))
 			}
 		})
 	}
