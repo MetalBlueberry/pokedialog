@@ -30,7 +30,7 @@ var Pokefont []byte
 
 //go:embed "dialog.png"
 var DefaultDialog []byte
-var DefaultDialogFrameRect = image.Rect(185, 145, 1530, 435)
+var DefaultDialogFrameRect = image.Rect(70, 70, 1425, 395)
 
 func NewDrawer() (*FrameDrawer, error) {
 	return NewDrawerWithDialog(bytes.NewReader(DefaultDialog), DefaultDialogFrameRect)
@@ -185,6 +185,7 @@ func SplitLines(face font.Face, text string, width int) []string {
 	for j := range words {
 		line := strings.Join(words[i:j], " ")
 		length := font.MeasureString(face, line)
+		log.Println(line)
 		if length.Ceil() > width {
 			line := strings.Join(words[i:j-1], " ")
 			lines = append(lines, line)
