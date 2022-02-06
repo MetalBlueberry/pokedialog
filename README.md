@@ -1,0 +1,3 @@
+# Pokedialog
+
+![pokedialog](welcome.gif)
