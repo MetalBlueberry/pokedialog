@@ -16,6 +16,7 @@ func main() {
 	frames := flag.Int("frames", 0, "number of frames")
 	duration := flag.Float64("duration", 0, "duration for the gif in seconds")
 	optimize := flag.Bool("optimize", true, "post process gif to reduce size by using transparency on each frame")
+	output := flag.String("output", "pokedialog.gif", "file output")
 
 	flag.Parse()
 
@@ -45,7 +46,7 @@ func main() {
 		}
 	}
 
-	f, err := os.Create("hello-go.gif")
+	f, err := os.Create(*output)
 	if err != nil {
 		panic(err)
 	}

@@ -108,13 +108,10 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) *gif.GIF {
 
 		paragraphFrames := fd.DrawFrames(paragraph, paragraphFrameCount)
 		frames = append(frames, paragraphFrames...)
-		log.Println(duration, paragraphFrameCount)
-		log.Println(duration / time.Duration(frameCount))
 		delays = append(delays, constantDelay(len(paragraphFrames), duration/time.Duration(frameCount))...)
 
 		delays[len(delays)-1] = delays[len(delays)-1] * 10
 	}
-	log.Println(delays)
 
 	return &gif.GIF{
 		Image:     frames,
