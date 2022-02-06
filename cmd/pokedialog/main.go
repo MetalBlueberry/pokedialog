@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"image"
 	"image/gif"
 	"os"
 	"time"
@@ -15,7 +14,6 @@ func main() {
 	text := flag.String("text", "hello world", "text to be render")
 	frames := flag.Int("frames", 0, "number of frames")
 	duration := flag.Float64("duration", 0, "duration for the gif in seconds")
-	optimize := flag.Bool("optimize", true, "post process gif to reduce size by using transparency on each frame")
 	output := flag.String("output", "pokedialog.gif", "file output")
 	endParagraphDuration := flag.Float64("endParagraphDuration", 0, "end paragraph duration in seconds")
 
@@ -32,7 +30,7 @@ func main() {
 		panic(err)
 	}
 
-	gifs := dw.Gif(
+	gifs, err := dw.Gif(
 		*text,
 		pokedialog.GifConfig{
 			FrameCount:           *frames,
@@ -41,11 +39,8 @@ func main() {
 		},
 	)
 
-	if *optimize {
-		opt := GifFrameOptimizer()
-		for i := range gifs.Image {
-			opt(gifs.Image[i])
-		}
+	if err != nil {
+		panic(err)
 	}
 
 	f, err := os.Create(*output)
@@ -57,30 +52,5 @@ func main() {
 	err = gif.EncodeAll(f, gifs)
 	if err != nil {
 		panic(err)
-	}
-}
-
-// GifFrameOptimizer turns repeated pixels to transparent to the final gif size is minimal.
-func GifFrameOptimizer() func(img *image.Paletted) {
-	var currentImage *image.Paletted
-
-	return func(img *image.Paletted) {
-		if currentImage == nil {
-			currentImage = &image.Paletted{}
-			currentImage.Palette = img.Palette
-			currentImage.Rect = img.Rect
-			currentImage.Stride = img.Stride
-			currentImage.Pix = make([]uint8, len(img.Pix))
-			copy(currentImage.Pix, img.Pix)
-			return
-		}
-
-		for i := range img.Pix {
-			if img.Pix[i] == currentImage.Pix[i] {
-				img.Pix[i] = 0
-			} else {
-				currentImage.Pix[i] = img.Pix[i]
-			}
-		}
 	}
 }

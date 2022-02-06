@@ -3,6 +3,7 @@ package pokedialog
 import (
 	"bytes"
 	_ "embed"
+	"errors"
 	"image"
 	"image/color"
 	"image/draw"
@@ -20,6 +21,7 @@ import (
 )
 
 type FrameDrawer struct {
+	Log       *log.Logger
 	font      *truetype.Font
 	palette   []color.Color
 	img       *image.Paletted
@@ -67,6 +69,7 @@ func NewDrawerWithDialog(dialogFile io.Reader, frameRect image.Rectangle) (*Fram
 		palette:   palette,
 		img:       img,
 		frameRect: frameRect,
+		Log:       log.Default(),
 	}, nil
 }
 
@@ -87,16 +90,16 @@ type GifConfig struct {
 	EndParagraphDuration time.Duration
 }
 
-func (fd *FrameDrawer) Gif(text string, conf GifConfig) *gif.GIF {
+func (fd *FrameDrawer) Gif(text string, conf GifConfig) (*gif.GIF, error) {
 	maxFrames := len(text)
 
 	frameCount := conf.FrameCount
 	if conf.FrameCount == 0 {
-		log.Println("using max number of frames")
+		fd.Log.Println("using max number of frames")
 		frameCount = maxFrames
 	}
 	if conf.FrameCount > maxFrames {
-		log.Printf("WARNING!! too many frames, %d", maxFrames)
+		fd.Log.Printf("WARNING!! too many frames, maximum is %d", maxFrames)
 		frameCount = maxFrames
 	}
 
@@ -108,7 +111,7 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) *gif.GIF {
 	paragraphs := splitParagraphs(text)
 	frames := []*image.Paletted{}
 	delays := []int{}
-	log.Printf("found %d paragraphs", len(paragraphs))
+	fd.Log.Printf("found %d paragraphs", len(paragraphs))
 
 	endParagraphDuration := time.Second
 	if conf.EndParagraphDuration != 0 {
@@ -116,13 +119,12 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) *gif.GIF {
 	}
 	regularFrameDuration := duration - time.Duration(len(paragraphs))*endParagraphDuration
 	if regularFrameDuration <= time.Second/60 {
-		log.Println("ERROR!! duration is too small, try providing a bigger value for --duration")
-		return nil
+		return nil, errors.New("ERROR!! duration is too small, try providing a bigger value for --duration")
 	}
 	time := regularFrameDuration / time.Duration(frameCount)
 
 	for _, paragraph := range paragraphs {
-		log.Println(paragraph)
+		fd.Log.Println(paragraph)
 		paragraphFrameCount := int(math.Ceil(float64(frameCount*len(paragraph)) / float64(len(text))))
 		paragraphFrames := fd.DrawFrames(paragraph, paragraphFrameCount)
 		frames = append(frames, paragraphFrames...)
@@ -130,10 +132,16 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) *gif.GIF {
 		delays = append(delays, makeWithValue(len(paragraphFrames), int(time.Seconds()*100))...)
 		delays[len(delays)-1] = int(endParagraphDuration.Seconds() * 100)
 	}
+
+	opt := GifFrameOptimizer()
+	for i := range frames {
+		opt(frames[i])
+	}
+
 	return &gif.GIF{
 		Image: frames,
 		Delay: delays,
-	}
+	}, nil
 
 }
 
@@ -266,4 +274,29 @@ func sum(s []int) (r int) {
 		r += s[i]
 	}
 	return
+}
+
+// GifFrameOptimizer turns repeated pixels to transparent to the final gif size is minimal.
+func GifFrameOptimizer() func(img *image.Paletted) {
+	var currentImage *image.Paletted
+
+	return func(img *image.Paletted) {
+		if currentImage == nil {
+			currentImage = &image.Paletted{}
+			currentImage.Palette = img.Palette
+			currentImage.Rect = img.Rect
+			currentImage.Stride = img.Stride
+			currentImage.Pix = make([]uint8, len(img.Pix))
+			copy(currentImage.Pix, img.Pix)
+			return
+		}
+
+		for i := range img.Pix {
+			if img.Pix[i] == currentImage.Pix[i] {
+				img.Pix[i] = 0
+			} else {
+				currentImage.Pix[i] = img.Pix[i]
+			}
+		}
+	}
 }
