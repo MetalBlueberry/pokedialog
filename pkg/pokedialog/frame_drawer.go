@@ -70,9 +70,14 @@ func NewDrawerWithDialog(dialogFile io.Reader, frameRect image.Rectangle) (*Fram
 }
 
 func (fd *FrameDrawer) baseImage() *image.Paletted {
-	base := image.NewPaletted(fd.img.Rect, fd.palette)
-	draw.Draw(base, base.Bounds(), fd.img, fd.img.Bounds().Min, draw.Src)
-	return base
+	pix := make([]uint8, len(fd.img.Pix))
+	copy(pix, fd.img.Pix)
+	return &image.Paletted{
+		Pix:     pix,
+		Stride:  fd.img.Stride,
+		Rect:    fd.img.Rect,
+		Palette: fd.img.Palette,
+	}
 }
 
 type GifConfig struct {
