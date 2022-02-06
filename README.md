@@ -22,3 +22,7 @@ go run cmd/pokedialog/main.go --duration 10 --output welcome.gif --text 'Welcome
   -text string
         text to be render (default "hello world")
 ```
+
+## Why?
+
+![why](but_why.gif)
