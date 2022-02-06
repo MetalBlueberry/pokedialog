@@ -25,4 +25,6 @@ go run cmd/pokedialog/main.go --duration 10 --output welcome.gif --text 'Welcome
 
 ## Why?
 
+![pickle](pickle.jpeg)
+
 ![why](but_why.gif)
