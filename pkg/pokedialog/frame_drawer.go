@@ -10,6 +10,7 @@ import (
 	"image/png"
 	"io"
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -81,8 +82,9 @@ func (fd *FrameDrawer) baseImage() *image.Paletted {
 }
 
 type GifConfig struct {
-	FrameCount int
-	Duration   time.Duration
+	FrameCount           int
+	Duration             time.Duration
+	EndParagraphDuration time.Duration
 }
 
 func (fd *FrameDrawer) Gif(text string, conf GifConfig) *gif.GIF {
@@ -107,17 +109,27 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) *gif.GIF {
 	frames := []*image.Paletted{}
 	delays := []int{}
 	log.Printf("found %d paragraphs", len(paragraphs))
+
+	endParagraphDuration := time.Second
+	if conf.EndParagraphDuration != 0 {
+		endParagraphDuration = conf.EndParagraphDuration
+	}
+	regularFrameDuration := duration - time.Duration(len(paragraphs))*endParagraphDuration
+	if regularFrameDuration <= time.Second/60 {
+		log.Println("ERROR!! duration is too small, try providing a bigger value for --duration")
+		return nil
+	}
+	time := regularFrameDuration / time.Duration(frameCount)
+
 	for _, paragraph := range paragraphs {
 		log.Println(paragraph)
-		paragraphFrameCount := frameCount * len(paragraph) / len(text)
-
+		paragraphFrameCount := int(math.Ceil(float64(frameCount*len(paragraph)) / float64(len(text))))
 		paragraphFrames := fd.DrawFrames(paragraph, paragraphFrameCount)
 		frames = append(frames, paragraphFrames...)
-		delays = append(delays, constantDelay(len(paragraphFrames), duration/time.Duration(frameCount))...)
 
-		delays[len(delays)-1] = delays[len(delays)-1] * 10
+		delays = append(delays, makeWithValue(len(paragraphFrames), int(time.Seconds()*100))...)
+		delays[len(delays)-1] = int(endParagraphDuration.Seconds() * 100)
 	}
-
 	return &gif.GIF{
 		Image: frames,
 		Delay: delays,
@@ -230,6 +242,14 @@ func LinesAt(lines []string, position int) []string {
 
 func splitParagraphs(text string) []string {
 	return strings.Split(text, "\n")
+}
+
+func makeWithValue(n int, value int) []int {
+	s := make([]int, n)
+	for i := range s {
+		s[i] = value
+	}
+	return s
 }
 
 func constantDelay(n int, duration time.Duration) []int {

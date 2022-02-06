@@ -17,6 +17,7 @@ func main() {
 	duration := flag.Float64("duration", 0, "duration for the gif in seconds")
 	optimize := flag.Bool("optimize", true, "post process gif to reduce size by using transparency on each frame")
 	output := flag.String("output", "pokedialog.gif", "file output")
+	endParagraphDuration := flag.Float64("endParagraphDuration", 0, "end paragraph duration in seconds")
 
 	flag.Parse()
 
@@ -34,8 +35,9 @@ func main() {
 	gifs := dw.Gif(
 		*text,
 		pokedialog.GifConfig{
-			FrameCount: *frames,
-			Duration:   time.Duration(*duration) * time.Second,
+			FrameCount:           *frames,
+			Duration:             time.Duration(*duration * float64(time.Second)),
+			EndParagraphDuration: time.Duration(*endParagraphDuration * float64(time.Second)),
 		},
 	)
 
