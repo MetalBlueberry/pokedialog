@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+func BenchmarkGif(b *testing.B) {
+	dw, err := NewDrawer()
+	if err != nil {
+		b.Log("unexpected error", err.Error())
+		b.FailNow()
+	}
+	for n := 0; n < b.N; n++ {
+		dw.Gif("hello world", GifConfig{})
+	}
+}
+
 func TestLinesAt(t *testing.T) {
 	type args struct {
 		lines    []string
