@@ -108,7 +108,7 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) *gif.GIF {
 	delays := []int{}
 	log.Printf("found %d paragraphs", len(paragraphs))
 	for _, paragraph := range paragraphs {
-		log.Println(paragraph, frameCount)
+		log.Println(paragraph)
 		paragraphFrameCount := frameCount * len(paragraph) / len(text)
 
 		paragraphFrames := fd.DrawFrames(paragraph, paragraphFrameCount)
@@ -119,9 +119,8 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) *gif.GIF {
 	}
 
 	return &gif.GIF{
-		Image:     frames,
-		Delay:     delays,
-		LoopCount: 0,
+		Image: frames,
+		Delay: delays,
 	}
 
 }
