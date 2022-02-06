@@ -13,6 +13,8 @@ go run cmd/pokedialog/main.go --duration 10 --output welcome.gif --text 'Welcome
 ```sh
   -duration float
         duration for the gif in seconds
+  -endParagraphDuration float
+        end paragraph duration in seconds
   -frames int
         number of frames
   -optimize
