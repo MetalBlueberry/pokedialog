@@ -54,6 +54,8 @@ func main() {
 	}
 
 	b.Handle(tele.OnText, func(c tele.Context) error {
+		log.Println(c.Text())
+
 		dw, err := pokedialog.NewDrawer()
 		if err != nil {
 			return c.Send(err.Error())
@@ -80,6 +82,8 @@ func main() {
 	})
 
 	b.Handle("/gif", func(c tele.Context) error {
+		log.Println(c.Text())
+
 		logger := &tdlog{c: c}
 		defer logger.Close()
 
@@ -108,8 +112,6 @@ func main() {
 		duration := f.Float64("duration", 0, "duration for the gif in seconds")
 		hr := f.Bool("hr", false, "generate a high resolution gif")
 		endParagraphFrames := f.Int("endParagraphFrames", 0, "end paragraph frames, this will give you more time to read the paragraph until the end")
-
-		log.Println(strings.Join(args, ","))
 
 		err = f.Parse(args[1:])
 		if err != nil {
@@ -152,26 +154,4 @@ Try /gif -help if you need more control`)
 
 	println("ready")
 	b.Start()
-}
-
-func SimpleGif(dw *pokedialog.FrameDrawer, text string) (*tele.Document, error) {
-
-	buf := &bytes.Buffer{}
-	g, err := dw.Gif(text, pokedialog.GifConfig{
-		Duration:           time.Millisecond * 250 * time.Duration(len(text)),
-		EndParagraphFrames: 5,
-	})
-	if err != nil {
-		return nil, err
-	}
-	err = gif.EncodeAll(buf, g)
-	if err != nil {
-		return nil, err
-	}
-
-	return &tele.Document{
-		File:     tele.FromReader(buf),
-		FileName: "poke.gif",
-		// DisableTypeDetection: true,
-	}, nil
 }
