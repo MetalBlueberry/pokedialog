@@ -94,7 +94,6 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) (*gif.GIF, error) {
 
 	frameCount := conf.FrameCount
 	if conf.FrameCount == 0 {
-		fd.Log.Println("using max number of frames")
 		frameCount = maxFrames
 	}
 	if conf.FrameCount > maxFrames {
@@ -118,7 +117,7 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) (*gif.GIF, error) {
 	}
 	time := duration / time.Duration(frameCount+len(paragraphs)*endParagraphFrames)
 
-	fd.Log.Println(frameCount)
+	// fd.Log.Println(frameCount)
 	for _, paragraph := range paragraphs {
 		paragraphFrameCount := int(math.Ceil(float64(frameCount*len(paragraph)) / float64(len(text))))
 		paragraphFrames := fd.DrawFrames(paragraph, paragraphFrameCount)
