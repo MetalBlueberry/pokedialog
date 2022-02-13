@@ -7,9 +7,9 @@ Environment=BOT_TOKEN=TOBEDEFINED
 Type=simple
 Restart=always
 RestartSec=30
-WorkingDirectory=/home/pi/
+WorkingDirectory=/home/pi/pokedialog
 User=pi
-ExecStart=/home/pi/Documents/Projects/pokedialog/cmd/pokedialog/pokedialog
+ExecStart=/home/pi/pokedialog/pokedialogbot
 
 StandardOutput=syslog
 StandardError=syslog
