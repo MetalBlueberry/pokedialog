@@ -1,0 +1,23 @@
+[Unit]
+Description=pokedialog service
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Environment=BOT_TOKEN=TOBEDEFINED
+Type=simple
+Restart=always
+RestartSec=30
+WorkingDirectory=/home/pi/
+User=pi
+ExecStart=/home/pi/Documents/Projects/pokedialog/cmd/pokedialog/pokedialog
+
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=pokedialog
+
+StartLimitBurst=5
+
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -9,6 +9,7 @@ import (
 	"image/gif"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -40,9 +41,9 @@ func (td *tdlog) Close() error {
 }
 
 func main() {
-	token, err := os.ReadFile("token.txt")
-	if err != nil {
-		panic(err)
+	token, ok := os.LookupEnv("BOT_TOKEN")
+	if !ok {
+		panic("BOT_TOKEN variable not found")
 	}
 	pref := tele.Settings{
 		Token:  string(token),
@@ -54,7 +55,7 @@ func main() {
 		log.Fatal(err)
 		return
 	}
-	cl := NewConcurrentLimit(1)
+	cl := NewConcurrentLimit(runtime.NumCPU() - 1)
 
 	b.Handle(tele.OnText, func(c tele.Context) error {
 		if c.Chat().Type != tele.ChatPrivate {
@@ -180,7 +181,8 @@ If you add multiple lines, each one will be in a different paragraph.
 Try /pokedialog -help if you need more control`)
 	}, Monitor)
 
-	println("ready")
+	log.Println(cl)
+	log.Println("ready")
 	b.Start()
 }
 
@@ -229,25 +231,29 @@ func Monitor(next tele.HandlerFunc) tele.HandlerFunc {
 
 func NewConcurrentLimit(max int) *ConcurrentLimit {
 	cl := &ConcurrentLimit{
-		Workers: make(chan *Worker, max),
+		workers: make(chan *Worker, max),
 	}
 	for i := 0; i < max; i++ {
-		cl.Workers <- &Worker{ID: i}
+		cl.workers <- &Worker{ID: i}
 	}
 	return cl
 }
 
 type ConcurrentLimit struct {
-	Workers chan *Worker
+	workers chan *Worker
 }
 
 type Worker struct {
 	ID int
 }
 
+func (cl *ConcurrentLimit) String() string {
+	return fmt.Sprintf("Concurrency set to %d", len(cl.workers))
+}
+
 func (cl *ConcurrentLimit) Adquire(ctx context.Context) (*Worker, error) {
 	select {
-	case w := <-cl.Workers:
+	case w := <-cl.workers:
 		return w, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -255,7 +261,7 @@ func (cl *ConcurrentLimit) Adquire(ctx context.Context) (*Worker, error) {
 }
 
 func (cl *ConcurrentLimit) Return(w *Worker) {
-	cl.Workers <- w
+	cl.workers <- w
 }
 
 func (cl *ConcurrentLimit) Handler(next tele.HandlerFunc) tele.HandlerFunc {
