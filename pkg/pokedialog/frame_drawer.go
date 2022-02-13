@@ -19,6 +19,8 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+var AbsoluteMax int = 1000
+
 type FrameDrawer struct {
 	Log       *log.Logger
 	font      *truetype.Font
@@ -73,14 +75,7 @@ func NewDrawerWithDialog(dialogFile io.Reader, frameRect image.Rectangle) (*Fram
 }
 
 func (fd *FrameDrawer) baseImage() *image.Paletted {
-	pix := make([]uint8, len(fd.img.Pix))
-	copy(pix, fd.img.Pix)
-	return &image.Paletted{
-		Pix:     pix,
-		Stride:  fd.img.Stride,
-		Rect:    fd.img.Rect,
-		Palette: fd.img.Palette,
-	}
+	return copyImage(fd.img)
 }
 
 type GifConfig struct {
@@ -90,20 +85,28 @@ type GifConfig struct {
 }
 
 func (fd *FrameDrawer) Gif(text string, conf GifConfig) (*gif.GIF, error) {
-	maxFrames := len(text)
+	maxFrames := min(len(text), AbsoluteMax)
 
 	frameCount := conf.FrameCount
 	if conf.FrameCount == 0 {
 		frameCount = maxFrames
 	}
+
+	if len(text) > AbsoluteMax {
+		fd.Log.Printf("WARNING!! Text is too long! frames limitted to %d", maxFrames)
+	}
+
 	if conf.FrameCount > maxFrames {
-		fd.Log.Printf("WARNING!! too many frames, maximum is %d", maxFrames)
+		fd.Log.Printf("WARNING!! too many frames requested, maximum is %d", maxFrames)
 		frameCount = maxFrames
 	}
 
 	duration := time.Millisecond * 250 * time.Duration(len(text))
-	if conf.Duration != 0 {
+	if conf.Duration > 0 {
 		duration = conf.Duration
+	}
+	if conf.Duration < 0 {
+		fd.Log.Print("WARNING!! duration can be less than 0")
 	}
 
 	paragraphs := splitParagraphs(text)
@@ -311,4 +314,11 @@ func copyImage(origin *image.Paletted) *image.Paletted {
 		Rect:    origin.Rect,
 		Palette: origin.Palette,
 	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

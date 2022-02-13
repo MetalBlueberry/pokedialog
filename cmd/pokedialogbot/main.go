@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"image/gif"
@@ -52,9 +54,17 @@ func main() {
 		log.Fatal(err)
 		return
 	}
+	cl := NewConcurrentLimit(1)
 
 	b.Handle(tele.OnText, func(c tele.Context) error {
-		log.Println(c.Text())
+		if c.Chat().Type != tele.ChatPrivate {
+			log.Println("it is not a private chat")
+			return nil
+		}
+
+		if err := c.Notify(tele.Typing); err != nil {
+			log.Println(err)
+		}
 
 		dw, err := pokedialog.NewDrawer()
 		if err != nil {
@@ -74,18 +84,24 @@ func main() {
 			return c.Send(err.Error())
 		}
 
+		if err := c.Notify(tele.UploadingDocument); err != nil {
+			log.Println(err)
+		}
+
 		return c.Send(&tele.Document{
 			File:     tele.FromReader(buf),
 			FileName: "poke.gif",
 			// DisableTypeDetection: true,
 		})
-	})
+	}, Monitor, cl.Handler)
 
-	b.Handle("/gif", func(c tele.Context) error {
-		log.Println(c.Text())
-
+	b.Handle("/pokedialog", func(c tele.Context) error {
 		logger := &tdlog{c: c}
 		defer logger.Close()
+
+		if err := c.Notify(tele.Typing); err != nil {
+			log.Println(err)
+		}
 
 		args, err := shellwords.Parse(c.Message().Text)
 		if err != nil {
@@ -99,17 +115,13 @@ func main() {
 			if f.Name() == "" {
 				fmt.Fprintf(f.Output(), "Usage:\n")
 			} else {
-				fmt.Fprintf(f.Output(), "Usage of %s:\nYou can generate gifs that look like old good pokedialogs\n\n/gif [flags] \"text you want to create\"\n", f.Name())
+				fmt.Fprintf(f.Output(), "Usage of %s:\nYou can generate gifs that look like old good pokedialogs\n\n/pokedialog [flags] \"text you want to create\"\n", f.Name())
 			}
 			f.PrintDefaults()
 		}
 
-		if len(args) <= 1 {
-			return c.Send("You have to specify the text after the /gif command")
-		}
-
 		frames := f.Int("frames", 0, "number of frames")
-		duration := f.Float64("duration", 0, "duration for the gif in seconds")
+		duration := f.String("duration", "0", "duration for the gif. 1s 10s 1m...")
 		hr := f.Bool("hr", false, "generate a high resolution gif")
 		endParagraphFrames := f.Int("endParagraphFrames", 0, "end paragraph frames, this will give you more time to read the paragraph until the end")
 
@@ -120,15 +132,26 @@ func main() {
 
 		dw, err := pokedialog.NewDrawer()
 		if err != nil {
-			panic(err)
+			return err
 		}
 		dw.Log = log.New(logger, "", 0)
 		text := strings.Join(f.Args(), " ")
+
+		if len(text) <= 1 {
+			f.Usage()
+			return nil
+		}
+
+		parsedDuration, err := time.ParseDuration(*duration)
+		if err != nil {
+			return c.Send(fmt.Sprintf("Invalid duration %s, %s", *duration, err))
+		}
+
 		gifs, err := dw.Gif(
 			text,
 			pokedialog.GifConfig{
 				FrameCount:         *frames,
-				Duration:           time.Duration(*duration * float64(time.Second)),
+				Duration:           parsedDuration,
 				EndParagraphFrames: *endParagraphFrames,
 			},
 		)
@@ -138,20 +161,114 @@ func main() {
 		if err != nil {
 			return c.Send(err.Error())
 		}
+
+		if err := c.Notify(tele.UploadingDocument); err != nil {
+			log.Println(err)
+		}
+
 		return c.Send(&tele.Document{
 			File:                 tele.FromReader(buf),
 			FileName:             "poke.gif",
 			DisableTypeDetection: *hr,
 		})
 
-	})
+	}, Monitor, cl.Handler)
 
 	b.Handle("/start", func(c tele.Context) error {
 		return c.Send(`Welcome! Just send me a text and I will create a poke dialog with it. 
 If you add multiple lines, each one will be in a different paragraph.
-Try /gif -help if you need more control`)
-	})
+Try /pokedialog -help if you need more control`)
+	}, Monitor)
 
 	println("ready")
 	b.Start()
+}
+
+type LogEntry struct {
+	Message LogEntryMessage `json:"message,omitempty"`
+}
+
+type LogEntryMessage struct {
+	MessageID int         `json:"message_id,omitempty"`
+	From      *tele.User  `json:"from,omitempty"`
+	Chat      *tele.Chat  `json:"chat,omitempty"`
+	Date      time.Time   `json:"date,omitempty"`
+	Text      string      `json:"text,omitempty"`
+	Error     error       `json:"error,omitempty"`
+	Panic     interface{} `json:"panic,omitempty"`
+}
+
+func Monitor(next tele.HandlerFunc) tele.HandlerFunc {
+	return func(c tele.Context) (err error) {
+		defer func() {
+			pan := recover()
+			if pan != nil {
+				c.Send("ouch! don't do that!!")
+			}
+			entry := LogEntry{
+				Message: LogEntryMessage{
+					MessageID: c.Message().ID,
+					From:      c.Message().Sender,
+					Chat:      c.Message().Chat,
+					Date:      c.Message().Time(),
+					Text:      c.Message().Text,
+					Error:     err,
+					Panic:     pan,
+				},
+			}
+			text, err := json.Marshal(entry)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println(string(text))
+			}
+		}()
+		return next(c)
+	}
+}
+
+func NewConcurrentLimit(max int) *ConcurrentLimit {
+	cl := &ConcurrentLimit{
+		Workers: make(chan *Worker, max),
+	}
+	for i := 0; i < max; i++ {
+		cl.Workers <- &Worker{ID: i}
+	}
+	return cl
+}
+
+type ConcurrentLimit struct {
+	Workers chan *Worker
+}
+
+type Worker struct {
+	ID int
+}
+
+func (cl *ConcurrentLimit) Adquire(ctx context.Context) (*Worker, error) {
+	select {
+	case w := <-cl.Workers:
+		return w, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func (cl *ConcurrentLimit) Return(w *Worker) {
+	cl.Workers <- w
+}
+
+func (cl *ConcurrentLimit) Handler(next tele.HandlerFunc) tele.HandlerFunc {
+	return func(c tele.Context) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		w, err := cl.Adquire(ctx)
+		if err != nil {
+			return c.Send(fmt.Sprintf("I'm too busy, try again later\n%s", err.Error()))
+		}
+		defer cl.Return(w)
+
+		return next(c)
+	}
 }
