@@ -63,10 +63,7 @@ func main() {
 		dw.Log = log.New(logger, "", 0)
 
 		buf := &bytes.Buffer{}
-		g, err := dw.Gif(c.Text(), pokedialog.GifConfig{
-			Duration:           time.Millisecond * 250 * time.Duration(len(c.Text())),
-			EndParagraphFrames: 5,
-		})
+		g, err := dw.Gif(c.Text(), pokedialog.GifConfig{})
 		if err != nil {
 			return c.Send(err.Error())
 		}
@@ -98,9 +95,13 @@ func main() {
 			if f.Name() == "" {
 				fmt.Fprintf(f.Output(), "Usage:\n")
 			} else {
-				fmt.Fprintf(f.Output(), "Usage of %s:\n", f.Name())
+				fmt.Fprintf(f.Output(), "Usage of %s:\nYou can generate gifs that look like old good pokedialogs\n\n/gif [flags] \"text you want to create\"\n", f.Name())
 			}
 			f.PrintDefaults()
+		}
+
+		if len(args) <= 1 {
+			return c.Send("You have to specify the text after the /gif command")
 		}
 
 		frames := f.Int("frames", 0, "number of frames")
@@ -120,9 +121,9 @@ func main() {
 			panic(err)
 		}
 		dw.Log = log.New(logger, "", 0)
-
+		text := strings.Join(f.Args(), " ")
 		gifs, err := dw.Gif(
-			strings.Join(f.Args(), " "),
+			text,
 			pokedialog.GifConfig{
 				FrameCount:         *frames,
 				Duration:           time.Duration(*duration * float64(time.Second)),

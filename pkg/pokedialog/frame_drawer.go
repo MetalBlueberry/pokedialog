@@ -101,7 +101,7 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) (*gif.GIF, error) {
 		frameCount = maxFrames
 	}
 
-	duration := time.Second * 5
+	duration := time.Millisecond * 250 * time.Duration(len(text))
 	if conf.Duration != 0 {
 		duration = conf.Duration
 	}
@@ -109,7 +109,6 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) (*gif.GIF, error) {
 	paragraphs := splitParagraphs(text)
 	frames := []*image.Paletted{}
 	delays := []int{}
-	// fd.Log.Printf("found %d paragraphs", len(paragraphs))
 
 	endParagraphFrames := 5
 	if conf.EndParagraphFrames != 0 {
