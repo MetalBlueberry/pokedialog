@@ -55,6 +55,14 @@ func main() {
 		log.Fatal(err)
 		return
 	}
+
+	logFile, err := os.Create(fmt.Sprintf("logs-%s.json", time.Now().Format(time.RFC3339)))
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
 	cl := NewConcurrentLimit(runtime.NumCPU() - 1)
 
 	b.Handle(tele.OnText, func(c tele.Context) error {
@@ -220,9 +228,9 @@ func Monitor(next tele.HandlerFunc) tele.HandlerFunc {
 			}
 			text, err := json.Marshal(entry)
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			} else {
-				fmt.Println(string(text))
+				log.Println(string(text))
 			}
 		}()
 		return next(c)
