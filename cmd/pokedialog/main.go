@@ -15,7 +15,7 @@ func main() {
 	frames := flag.Int("frames", 0, "number of frames")
 	duration := flag.Float64("duration", 0, "duration for the gif in seconds")
 	output := flag.String("output", "pokedialog.gif", "file output")
-	endParagraphDuration := flag.Float64("endParagraphDuration", 0, "end paragraph duration in seconds")
+	endParagraphFrames := flag.Int("endParagraphFrames", 0, "end paragraph frames, this will give you more time to read the paragraph until the end")
 
 	flag.Parse()
 
@@ -33,9 +33,9 @@ func main() {
 	gifs, err := dw.Gif(
 		*text,
 		pokedialog.GifConfig{
-			FrameCount:           *frames,
-			Duration:             time.Duration(*duration * float64(time.Second)),
-			EndParagraphDuration: time.Duration(*endParagraphDuration * float64(time.Second)),
+			FrameCount:         *frames,
+			Duration:           time.Duration(*duration * float64(time.Second)),
+			EndParagraphFrames: *endParagraphFrames,
 		},
 	)
 

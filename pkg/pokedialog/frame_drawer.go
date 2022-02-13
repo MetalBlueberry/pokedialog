@@ -3,7 +3,6 @@ package pokedialog
 import (
 	"bytes"
 	_ "embed"
-	"errors"
 	"image"
 	"image/color"
 	"image/draw"
@@ -85,9 +84,9 @@ func (fd *FrameDrawer) baseImage() *image.Paletted {
 }
 
 type GifConfig struct {
-	FrameCount           int
-	Duration             time.Duration
-	EndParagraphDuration time.Duration
+	FrameCount         int
+	Duration           time.Duration
+	EndParagraphFrames int
 }
 
 func (fd *FrameDrawer) Gif(text string, conf GifConfig) (*gif.GIF, error) {
@@ -111,27 +110,31 @@ func (fd *FrameDrawer) Gif(text string, conf GifConfig) (*gif.GIF, error) {
 	paragraphs := splitParagraphs(text)
 	frames := []*image.Paletted{}
 	delays := []int{}
-	fd.Log.Printf("found %d paragraphs", len(paragraphs))
+	// fd.Log.Printf("found %d paragraphs", len(paragraphs))
 
-	endParagraphDuration := time.Second
-	if conf.EndParagraphDuration != 0 {
-		endParagraphDuration = conf.EndParagraphDuration
+	endParagraphFrames := 5
+	if conf.EndParagraphFrames != 0 {
+		endParagraphFrames = conf.EndParagraphFrames
 	}
-	regularFrameDuration := duration - time.Duration(len(paragraphs))*endParagraphDuration
-	if regularFrameDuration <= time.Second/60 {
-		return nil, errors.New("ERROR!! duration is too small, try providing a bigger value for --duration")
-	}
-	time := regularFrameDuration / time.Duration(frameCount)
+	time := duration / time.Duration(frameCount+len(paragraphs)*endParagraphFrames)
 
+	fd.Log.Println(frameCount)
 	for _, paragraph := range paragraphs {
-		fd.Log.Println(paragraph)
 		paragraphFrameCount := int(math.Ceil(float64(frameCount*len(paragraph)) / float64(len(text))))
 		paragraphFrames := fd.DrawFrames(paragraph, paragraphFrameCount)
 		frames = append(frames, paragraphFrames...)
-
+		// fd.Log.Println(paragraph)
+		// fd.Log.Println(len(paragraphFrames))
 		delays = append(delays, makeWithValue(len(paragraphFrames), int(time.Seconds()*100))...)
-		delays[len(delays)-1] = int(endParagraphDuration.Seconds() * 100)
+
+		for i := 0; i < endParagraphFrames; i++ {
+			frames = append(frames, copyImage(frames[len(frames)-1]))
+			delays = append(delays, delays[len(delays)-1])
+		}
 	}
+
+	// fd.Log.Println(len(delays))
+	// fd.Log.Println(delays)
 
 	opt := GifFrameOptimizer()
 	for i := range frames {
@@ -298,5 +301,16 @@ func GifFrameOptimizer() func(img *image.Paletted) {
 				currentImage.Pix[i] = img.Pix[i]
 			}
 		}
+	}
+}
+
+func copyImage(origin *image.Paletted) *image.Paletted {
+	pix := make([]uint8, len(origin.Pix))
+	copy(pix, origin.Pix)
+	return &image.Paletted{
+		Pix:     pix,
+		Stride:  origin.Stride,
+		Rect:    origin.Rect,
+		Palette: origin.Palette,
 	}
 }
