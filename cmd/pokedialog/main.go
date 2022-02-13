@@ -11,7 +11,7 @@ import (
 
 func main() {
 
-	text := flag.String("text", "hello world", "text to be render")
+	text := flag.String("text", "hello world", "text to be rendered")
 	frames := flag.Int("frames", 0, "number of frames")
 	duration := flag.Float64("duration", 0, "duration for the gif in seconds")
 	output := flag.String("output", "pokedialog.gif", "file output")
